@@ -14,7 +14,6 @@ import (
 const noFlags = 0
 const usageErr = "client.go <user> <pass>"
 const authErr = "Credentials failed to log in"
-const serverAddress = "tcp://localhost:5555"
 
 func main() {
 	//  Socket to talk to server
@@ -22,7 +21,6 @@ func main() {
 	client, err := createClient()
 	if err == nil {
 		loginAndPlay(client)
-		client.Close()
 	} else {
 		log.Fatal(err)
 	}
@@ -37,22 +35,13 @@ func loginAndPlay(client *zmq.Socket) {
 	}
 }
 
-func createClient() (*zmq.Socket, error) {
-	client, err := zmq.NewSocket(zmq.REQ)
-	if err == nil {
-		client.Connect(serverAddress)
-		return client, nil
-	} else {
-		return nil, err
-	}
-}
-
 func requestLoginWith(client *zmq.Socket) (string, error) {
 	if len(os.Args) < 2 {
 		log.Fatal(usageErr)
 	}
 	username := os.Args[1]
 
+	// TODO: sendLoginMessage (to standardize)
   reply, err := sendMessage(username, client)
   if err == nil {
   	if reply == "denied" {
@@ -71,7 +60,7 @@ func readCommandsInto(client *zmq.Socket, authToken string) {
 		message, err := generateMessage(authToken, stream.Text())
 		if err == nil {
 
-			// TODO: new method
+			// TODO: sendPlayerMessage (to clean up)
 			reply, err := sendMessage(message, client)
 			if err == nil {
 				fmt.Println("Received ", reply)
@@ -87,19 +76,4 @@ func readCommandsInto(client *zmq.Socket, authToken string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func generateMessage(authToken string, message string) (string, error) {
-	messageMap := map[string]string{
-		"authToken": authToken,
-		"message": message,
-	}
-	bytes, err := json.Marshal(messageMap)
-	return string(bytes), err
-}
-
-func sendMessage(message string, client *zmq.Socket) (string, error) {
-	fmt.Println("Sending ", message)
-	client.Send(message, noFlags)
-	return client.Recv(0)
 }
