@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"errors"
-	"encoding/json"
+	"strings"
 
 	zmq "github.com/pebbe/zmq4"
+	"gomud/connections"
 )
 
-const noFlags = 0
 const usageErr = "client.go <user> <pass>"
 const authErr = "Credentials failed to log in"
 
 func main() {
 	//  Socket to talk to server
 	fmt.Println("Connecting...")
-	client, err := createClient()
+	client, err := connections.CreateClient()
+	defer client.Close()
 	if err == nil {
 		loginAndPlay(client)
 	} else {
@@ -40,40 +40,32 @@ func requestLoginWith(client *zmq.Socket) (string, error) {
 		log.Fatal(usageErr)
 	}
 	username := os.Args[1]
-
-	// TODO: sendLoginMessage (to standardize)
-  reply, err := sendMessage(username, client)
-  if err == nil {
-  	if reply == "denied" {
-  		return reply, errors.New(authErr)
-  	} else {
-  		return reply, nil
-  	}
-  } else {
-  	return reply, err
-  }
+	//password := os.Args[2]
+  return connections.RequestLogin(username, "", client)
 }
 
 func readCommandsInto(client *zmq.Socket, authToken string) {
 	stream := bufio.NewScanner(os.Stdin)
 	for stream.Scan() {
-		message, err := generateMessage(authToken, stream.Text())
-		if err == nil {
-
-			// TODO: sendPlayerMessage (to clean up)
-			reply, err := sendMessage(message, client)
-			if err == nil {
-				fmt.Println("Received ", reply)
-			} else {
-				log.Fatal(err)
-			}
-
-		} else {
-			log.Fatal(err)
-		}
+		handlePlayerInput(stream.Text(), authToken, client)
 	}
 	err := stream.Err()
 	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func handlePlayerInput(input string, authToken string, client *zmq.Socket) {
+	split := strings.SplitN(input, " ", 2)
+	command := split[0]
+	body := ""
+	if len(split) > 1 {
+		body = split[1]
+	}
+	reply, err := connections.RequestAction(command, body, authToken, client)
+	if err == nil {
+		fmt.Println("Received ", reply)
+	} else {
 		log.Fatal(err)
 	}
 }

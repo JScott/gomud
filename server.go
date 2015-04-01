@@ -3,20 +3,29 @@ package main
 import (
 	"fmt"
 	"time"
+	"log"
+	//"errors"
 
-	"github.com/fiorix/go-redis/redis"
+	"gomud/connections"
+	//"encoding/json"
+	//"github.com/fiorix/go-redis/redis"
 	zmq "github.com/pebbe/zmq4"
 )
 
 const noFlags = 0
 
 func main() {
-	server, _ := zmq.NewSocket(zmq.REP)
+	server, err := connections.CreateServer()
 	defer server.Close()
-	server.Bind("tcp://*:5555")
+	if err == nil {
+		waitForPlayersOn(server)
+	} else {
+		log.Fatal(err)
+	}
+}
 
-	storage := redis.New("localhost:6379")
-
+func waitForPlayersOn(server *zmq.Socket) {
+	//storage := redis.New("localhost:6379")
 	for {
 		//  Wait for next request from client
 		msg, _ := server.Recv(noFlags)
