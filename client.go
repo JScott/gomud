@@ -56,16 +56,20 @@ func readCommandsInto(client *zmq.Socket, authToken string) {
 }
 
 func handlePlayerInput(input string, authToken string, client *zmq.Socket) {
-	split := strings.SplitN(input, " ", 2)
-	command := split[0]
-	body := ""
-	if len(split) > 1 {
-		body = split[1]
-	}
+	command, body := parseInput(input)
 	reply, err := connections.RequestAction(command, body, authToken, client)
 	if err == nil {
 		fmt.Println("Received ", reply)
 	} else {
 		log.Fatal(err)
+	}
+}
+
+func parseInput(input string) (command string, body string) {
+  split := strings.SplitN(input, " ", 2)
+  command := split[0]
+  body := ""
+	if len(split) > 1 {
+		body = split[1]
 	}
 }
